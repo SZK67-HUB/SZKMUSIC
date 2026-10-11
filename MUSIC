@@ -1,0 +1,853 @@
+local SoundService     = game:GetService("SoundService")
+local UserInputService = game:GetService("UserInputService")
+local RunService       = game:GetService("RunService")
+local TweenService     = game:GetService("TweenService")
+local GuiService       = game:GetService("GuiService")
+
+local BG_ID   = "rbxassetid://103516381279878"   
+local BALL_ID = "rbxassetid://90064912954009"    
+
+local DISCORD_URL = "https://discord.gg/MWAeabGhpT"
+
+local SolarIcons
+pcall(function()
+    SolarIcons = (getgenv and (getgenv().SolarIcons or getgenv().solarIcons))
+    if not SolarIcons then
+        local ok, src = pcall(game.HttpGet, game,
+            "https://raw.githubusercontent.com/1stNox/SolarIcons/main/SolarIcons.lua", true)
+        if ok and src and #src > 100 then
+            local fn = loadstring(src)
+            if fn then SolarIcons = fn() end
+        end
+    end
+end)
+
+local function getIcon(name, emoji)
+    if SolarIcons then
+        local ok, asset = pcall(SolarIcons, name)
+        if ok and type(asset) == "string" and asset ~= "" then
+            return asset, true
+        end
+    end
+    return emoji, false
+end
+
+local SONGS = {
+    {name="LIL PEEP",       id="rbxassetid://93712087263103"},
+    {name="FROM THE STAR",  id="rbxassetid://127460736736456"},
+    {name="UNHAPPY",        id="rbxassetid://88523902860927"},
+    {name="BADHABBIT",      id="rbxassetid://139557371055334"},
+    {name="WE CAN GO UP",   id="rbxassetid://110685134112291"},
+    {name="Song 1",         id="rbxassetid://131465489873214"},
+    {name="Song 2",         id="rbxassetid://135321902579514"},
+    {name="Song 3",         id="rbxassetid://128048502331483"},
+    {name="Song 4",         id="rbxassetid://110398343528156"},
+    {name="Song 5",         id="rbxassetid://93699644879957"},
+    {name="Song 6",         id="rbxassetid://135609653444873"},
+    {name="Song 7",         id="rbxassetid://75688616622595"},
+    {name="Song 8",         id="rbxassetid://71393805905055"},
+    {name="Song 9",         id="rbxassetid://82746224492420"},
+    {name="Song 10",        id="rbxassetid://87570666848900"},
+    {name="Song 11",        id="rbxassetid://86503267790406"},
+    {name="Song 12",        id="rbxassetid://90851490275942"},
+    {name="Song 13",        id="rbxassetid://86317637164248"},
+    {name="Song 14",        id="rbxassetid://110685134112291"},
+    {name="Song 15",        id="rbxassetid://75793040119604"},
+    {name="Song 16",        id="rbxassetid://78775217854077"},
+    {name="Song 17",        id="rbxassetid://100840031560163"},
+    {name="Song 18",        id="rbxassetid://104242464450684"},
+    {name="Song 19",        id="rbxassetid://81151325045733"},
+    {name="Song 20",        id="rbxassetid://80735192805425"},
+    {name="Song 21",        id="rbxassetid://93930555396098"},
+    {name="Song 22",        id="rbxassetid://118773510013062"},
+    {name="Song 23",        id="rbxassetid://113269872401718"},
+    {name="Song 24",        id="rbxassetid://117334682026487"},
+    {name="Song 25",        id="rbxassetid://99625326669788"},
+    {name="Song 26",        id="rbxassetid://90859442818485"},
+    {name="Song 27",        id="rbxassetid://94912781109991"},
+    {name="Song 28",        id="rbxassetid://87748599204665"},
+    {name="Song 29",        id="rbxassetid://97927847298766"},
+    {name="Song 30",        id="rbxassetid://139128960634355"},
+    {name="Song 31",        id="rbxassetid://76735947142959"},
+    {name="Song 32",        id="rbxassetid://83704296378061"},
+    {name="Song 33",        id="rbxassetid://127879189759347"},
+    {name="Song 34",        id="rbxassetid://124302278803351"},
+    {name="Song 35",        id="rbxassetid://117992646273503"},
+}
+
+local Music = Instance.new("Sound", SoundService)
+Music.Name = "SZKMUSIC_Player"
+Music.Volume = 0.5
+Music.Looped = false
+
+local S = {index=1, playing=false, loopOn=false, randomOn=false, volume=0.5, open=true}
+local shuffledQueue = {}
+
+local C_BG1    = Color3.fromRGB(10, 10, 16)
+local C_BG2    = Color3.fromRGB(22, 20, 35)
+local C_ACC1   = Color3.fromRGB(168, 130, 255)
+local C_ACC2   = Color3.fromRGB(90, 200, 255)
+local C_OK     = Color3.fromRGB(0, 225, 160)
+local C_STOP   = Color3.fromRGB(255, 90, 120)
+local C_WARN   = Color3.fromRGB(255, 190, 70)
+local C_OFF    = Color3.fromRGB(38, 38, 55)
+local C_TEXT   = Color3.fromRGB(248, 248, 255)
+local C_DIM    = Color3.fromRGB(180, 180, 200)
+local C_DISCORD= Color3.fromRGB(115, 137, 218)
+
+local FRAME_W, FRAME_H = 120, 140
+local TOGGLE_SIZE      = 38
+local TOGGLE_OFF_X = math.floor((FRAME_W - TOGGLE_SIZE) / 2)
+local TOGGLE_OFF_Y = math.floor((FRAME_H - TOGGLE_SIZE) / 2)
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SZKMUSIC"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 999
+pcall(function() gui.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
+
+local shadows = {}
+for i = 1, 3 do
+    local s = Instance.new("Frame", gui)
+    s.Size = UDim2.fromOffset(FRAME_W + i*2, FRAME_H + i*2)
+    s.Position = UDim2.fromOffset(20 - i, 120 - i + 2)
+    s.BackgroundColor3 = Color3.new(0, 0, 0)
+    s.BackgroundTransparency = 0.75 + (i * 0.04)
+    s.BorderSizePixel = 0
+    s.ZIndex = 0
+    Instance.new("UICorner", s).CornerRadius = UDim.new(0, 14 + i)
+    table.insert(shadows, s)
+end
+
+local toggleShadows = {}
+for i = 1, 3 do
+    local s = Instance.new("Frame", gui)
+    s.Size = UDim2.fromOffset(TOGGLE_SIZE + i*2, TOGGLE_SIZE + i*2)
+    s.Position = UDim2.fromOffset(20 - i, 120 - i + 2)
+    s.BackgroundColor3 = Color3.new(0, 0, 0)
+    s.BackgroundTransparency = 0.75 + (i * 0.04)
+    s.BorderSizePixel = 0
+    s.Visible = false
+    s.ZIndex = 0
+    Instance.new("UICorner", s).CornerRadius = UDim.new(0, 12 + i)
+    table.insert(toggleShadows, s)
+end
+
+local frame = Instance.new("Frame", gui)
+frame.Name = "Main"
+frame.Size = UDim2.fromOffset(FRAME_W, FRAME_H)
+frame.Position = UDim2.fromOffset(20, 120)
+frame.BackgroundColor3 = C_BG1
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.ClipsDescendants = true
+frame.ZIndex = 1
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+
+local bg = Instance.new("ImageLabel", frame)
+bg.Name = "Background"
+bg.Size = UDim2.new(1, 0, 1, 0)
+bg.BackgroundTransparency = 1
+bg.Image = BG_ID
+bg.ScaleType = Enum.ScaleType.Crop
+bg.ImageTransparency = 0.05          
+bg.ZIndex = 1
+Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 14)
+
+local glass = Instance.new("Frame", frame)
+glass.Size = UDim2.new(1, 0, 1, 0)
+glass.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+glass.BackgroundTransparency = 0.75   
+glass.BorderSizePixel = 0
+glass.ZIndex = 2
+Instance.new("UICorner", glass).CornerRadius = UDim.new(0, 14)
+
+local glassGrad = Instance.new("UIGradient", glass)
+glassGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 40, 120)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 60, 100)),
+})
+glassGrad.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0.55),
+    NumberSequenceKeypoint.new(0.5, 0.85),
+    NumberSequenceKeypoint.new(1, 0.55),
+})
+glassGrad.Rotation = 135
+
+local stroke1 = Instance.new("UIStroke", frame)
+stroke1.Color = C_ACC1
+stroke1.Thickness = 1.5
+stroke1.Transparency = 0.15
+local stroke1Grad = Instance.new("UIGradient", stroke1)
+stroke1Grad.Color = ColorSequence.new(C_ACC1, C_ACC2)
+stroke1Grad.Rotation = 45
+
+local stroke2 = Instance.new("UIStroke", frame)
+stroke2.Color = Color3.new(1, 1, 1)
+stroke2.Thickness = 0.5
+stroke2.Transparency = 0.85
+
+local header = Instance.new("Frame", frame)
+header.Size = UDim2.new(1, 0, 0, 18)
+header.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+header.BackgroundTransparency = 0.55
+header.BorderSizePixel = 0
+header.Active = true
+header.ZIndex = 10
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 14)
+local headerFix = Instance.new("Frame", header)
+headerFix.Size = UDim2.new(1, 0, 0, 8)
+headerFix.Position = UDim2.new(0, 0, 1, -8)
+headerFix.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+headerFix.BackgroundTransparency = 0.55
+headerFix.BorderSizePixel = 0
+headerFix.ZIndex = 10
+
+local hDot = Instance.new("Frame", header)
+hDot.Size = UDim2.fromOffset(5, 5)
+hDot.Position = UDim2.fromOffset(7, 7)
+hDot.BackgroundColor3 = C_ACC2
+hDot.BorderSizePixel = 0
+hDot.ZIndex = 11
+Instance.new("UICorner", hDot).CornerRadius = UDim.new(1, 0)
+local hDotGlow = Instance.new("UIStroke", hDot)
+hDotGlow.Color = C_ACC2
+hDotGlow.Thickness = 2
+hDotGlow.Transparency = 0.5
+
+local hTitle = Instance.new("TextLabel", header)
+hTitle.Size = UDim2.new(1, -30, 1, 0)
+hTitle.Position = UDim2.fromOffset(17, 0)
+hTitle.BackgroundTransparency = 1
+hTitle.Text = "SZKMUSIC"
+hTitle.TextColor3 = C_TEXT
+hTitle.Font = Enum.Font.GothamBold
+hTitle.TextSize = 9
+hTitle.TextXAlignment = Enum.TextXAlignment.Left
+hTitle.ZIndex = 11
+
+local CLOSE_ICON, CLOSE_IS_IMG = getIcon("ri:fullscreen-exit-fill", "✕")
+local btnClose = Instance.new("TextButton", header)
+btnClose.Size = UDim2.fromOffset(14, 14)
+btnClose.Position = UDim2.new(1, -18, 0.5, -7)
+btnClose.BackgroundColor3 = C_STOP
+btnClose.BackgroundTransparency = 0.85
+btnClose.Text = CLOSE_IS_IMG and "" or CLOSE_ICON
+btnClose.TextColor3 = C_STOP
+btnClose.Font = Enum.Font.GothamBold
+btnClose.TextSize = 9
+btnClose.BorderSizePixel = 0
+btnClose.AutoButtonColor = false
+btnClose.ZIndex = 11
+Instance.new("UICorner", btnClose).CornerRadius = UDim.new(1, 0)
+local closeStroke = Instance.new("UIStroke", btnClose)
+closeStroke.Color = C_STOP
+closeStroke.Thickness = 1
+closeStroke.Transparency = 0.5
+
+if CLOSE_IS_IMG then
+    local img = Instance.new("ImageLabel", btnClose)
+    img.Size = UDim2.fromOffset(10, 10)
+    img.Position = UDim2.new(0.5, -5, 0.5, -5)
+    img.BackgroundTransparency = 1
+    img.Image = CLOSE_ICON
+    img.ImageColor3 = C_STOP
+    img.ZIndex = 12
+end
+
+btnClose.MouseEnter:Connect(function()
+    TweenService:Create(btnClose, TweenInfo.new(0.15), {BackgroundTransparency = 0.3}):Play()
+end)
+btnClose.MouseLeave:Connect(function()
+    TweenService:Create(btnClose, TweenInfo.new(0.15), {BackgroundTransparency = 0.85}):Play()
+end)
+
+local ball = Instance.new("ImageLabel", frame)
+ball.Name = "Ball"
+ball.Size = UDim2.fromOffset(36, 36)
+ball.Position = UDim2.fromOffset(42, 21)
+ball.BackgroundColor3 = C_BG1
+ball.BackgroundTransparency = 0.05
+ball.Image = BALL_ID
+ball.ScaleType = Enum.ScaleType.Crop
+ball.ZIndex = 6
+Instance.new("UICorner", ball).CornerRadius = UDim.new(1, 0)
+
+local ballGlow = Instance.new("UIStroke", ball)
+ballGlow.Color = C_ACC1
+ballGlow.Thickness = 2
+ballGlow.Transparency = 0.2
+local ballGlowGrad = Instance.new("UIGradient", ballGlow)
+ballGlowGrad.Color = ColorSequence.new(C_ACC1, C_ACC2)
+ballGlowGrad.Rotation = 45
+
+local ballBtn = Instance.new("TextButton", ball)
+ballBtn.Size = UDim2.new(1, 0, 1, 0)
+ballBtn.BackgroundTransparency = 1
+ballBtn.Text = ""
+ballBtn.ZIndex = 7
+
+local songLabel = Instance.new("TextLabel", frame)
+songLabel.Size = UDim2.new(1, -10, 0, 10)
+songLabel.Position = UDim2.fromOffset(5, 60)
+songLabel.BackgroundTransparency = 1
+songLabel.Text = SONGS[S.index].name
+songLabel.TextColor3 = C_TEXT
+songLabel.Font = Enum.Font.GothamBold
+songLabel.TextSize = 8
+songLabel.TextXAlignment = Enum.TextXAlignment.Center
+songLabel.TextTruncate = Enum.TextTruncate.AtEnd
+songLabel.ZIndex = 6
+songLabel.TextStrokeTransparency = 0.2
+songLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+local progBg = Instance.new("Frame", frame)
+progBg.Size = UDim2.fromOffset(110, 3)
+progBg.Position = UDim2.fromOffset(5, 73)
+progBg.BackgroundColor3 = C_OFF
+progBg.BackgroundTransparency = 0.2
+progBg.BorderSizePixel = 0
+progBg.ZIndex = 5
+Instance.new("UICorner", progBg).CornerRadius = UDim.new(1, 0)
+
+local progFill = Instance.new("Frame", progBg)
+progFill.Size = UDim2.new(0, 0, 1, 0)
+progFill.BorderSizePixel = 0
+progFill.ZIndex = 6
+Instance.new("UICorner", progFill).CornerRadius = UDim.new(1, 0)
+local progGrad = Instance.new("UIGradient", progFill)
+progGrad.Color = ColorSequence.new(C_ACC1, C_ACC2)
+
+local function makeIconBtn(parent, size, pos, iconName, emoji, accent)
+    local b = Instance.new("TextButton", parent)
+    b.Size = size
+    b.Position = pos
+    b.BackgroundColor3 = accent
+    b.BackgroundTransparency = 0.7
+    b.Text = ""
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 11
+    b.TextColor3 = accent
+    b.BorderSizePixel = 0
+    b.AutoButtonColor = false
+    b.ZIndex = 6
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+
+    local st = Instance.new("UIStroke", b)
+    st.Color = accent
+    st.Thickness = 1
+    st.Transparency = 0.35
+
+    local asset, isImg = getIcon(iconName, emoji)
+    if isImg then
+        local img = Instance.new("ImageLabel", b)
+        img.Name = "IconImg"
+        img.Size = UDim2.fromScale(0.6, 0.6)
+        img.Position = UDim2.fromScale(0.2, 0.2)
+        img.BackgroundTransparency = 1
+        img.Image = asset
+        img.ImageColor3 = accent
+        img.ZIndex = 7
+    else
+        local lbl = Instance.new("TextLabel", b)
+        lbl.Name = "IconTxt"
+        lbl.Size = UDim2.fromScale(1, 1)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = asset
+        lbl.TextColor3 = accent
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 13
+        lbl.ZIndex = 7
+    end
+
+    b.MouseEnter:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.12), {BackgroundTransparency = 0.45}):Play()
+        local img = b:FindFirstChild("IconImg")
+        if img then TweenService:Create(img, TweenInfo.new(0.12), {ImageColor3 = Color3.new(1,1,1)}):Play() end
+        local txt = b:FindFirstChild("IconTxt")
+        if txt then TweenService:Create(txt, TweenInfo.new(0.12), {TextColor3 = Color3.new(1,1,1)}):Play() end
+    end)
+    b.MouseLeave:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.12), {BackgroundTransparency = 0.7}):Play()
+        local img = b:FindFirstChild("IconImg")
+        if img then TweenService:Create(img, TweenInfo.new(0.12), {ImageColor3 = b:GetAttribute("ActiveColor") or accent}):Play() end
+        local txt = b:FindFirstChild("IconTxt")
+        if txt then TweenService:Create(txt, TweenInfo.new(0.12), {TextColor3 = b:GetAttribute("ActiveColor") or accent}):Play() end
+    end)
+    b:SetAttribute("ActiveColor", accent)
+    b:SetAttribute("AccentColor", accent)
+    b:SetAttribute("Stroke", st)
+    b:SetAttribute("IsImage", isImg)
+    return b
+end
+
+local function setIconBtnState(b, on)
+    local accent = b:GetAttribute("AccentColor")
+    local st = b:GetAttribute("Stroke")
+    if on then
+        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundTransparency = 0.35, BackgroundColor3 = accent}):Play()
+        if st then TweenService:Create(st, TweenInfo.new(0.2), {Transparency = 0.05, Thickness = 1.4}):Play() end
+        local img = b:FindFirstChild("IconImg")
+        if img then TweenService:Create(img, TweenInfo.new(0.2), {ImageColor3 = Color3.new(1,1,1)}):Play() end
+        local txt = b:FindFirstChild("IconTxt")
+        if txt then TweenService:Create(txt, TweenInfo.new(0.2), {TextColor3 = Color3.new(1,1,1)}):Play() end
+    else
+        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundTransparency = 0.7, BackgroundColor3 = accent}):Play()
+        if st then TweenService:Create(st, TweenInfo.new(0.2), {Transparency = 0.35, Thickness = 1}):Play() end
+        local img = b:FindFirstChild("IconImg")
+        if img then TweenService:Create(img, TweenInfo.new(0.2), {ImageColor3 = accent}):Play() end
+        local txt = b:FindFirstChild("IconTxt")
+        if txt then TweenService:Create(txt, TweenInfo.new(0.2), {TextColor3 = accent}):Play() end
+    end
+end
+
+local btnPrev = makeIconBtn(frame, UDim2.fromOffset(36, 16), UDim2.fromOffset(5, 78),
+    "si:expand-more-square-duotone", "⏮", C_DIM)
+local btnPlay = makeIconBtn(frame, UDim2.fromOffset(40, 16), UDim2.fromOffset(42, 78),
+    "si:play-fill", "▶", C_OK)
+local btnNext = makeIconBtn(frame, UDim2.fromOffset(36, 16), UDim2.fromOffset(83, 78),
+    "si:expand-less-square-duotone", "⏭", C_DIM)
+
+local btnLoop = makeIconBtn(frame, UDim2.fromOffset(36, 14), UDim2.fromOffset(5, 96),
+    "si:actions-fill", "🔁", C_ACC1)
+local btnRand = makeIconBtn(frame, UDim2.fromOffset(40, 14), UDim2.fromOffset(42, 96),
+    "si:activity-duotone", "🔀", C_ACC2)
+local btnStop = makeIconBtn(frame, UDim2.fromOffset(36, 14), UDim2.fromOffset(83, 96),
+    "ri:stop-circle-fill", "⏹", C_STOP)
+
+local volBg = Instance.new("Frame", frame)
+volBg.Size = UDim2.fromOffset(110, 4)
+volBg.Position = UDim2.fromOffset(5, 113)
+volBg.BackgroundColor3 = C_OFF
+volBg.BackgroundTransparency = 0.2
+volBg.BorderSizePixel = 0
+volBg.ZIndex = 5
+Instance.new("UICorner", volBg).CornerRadius = UDim.new(1, 0)
+
+local volFill = Instance.new("Frame", volBg)
+volFill.Size = UDim2.new(0.5, 0, 1, 0)
+volFill.BorderSizePixel = 0
+volFill.ZIndex = 6
+Instance.new("UICorner", volFill).CornerRadius = UDim.new(1, 0)
+local volGrad = Instance.new("UIGradient", volFill)
+volGrad.Color = ColorSequence.new(C_ACC1, C_ACC2)
+
+local volKnobGlow = Instance.new("Frame", volBg)
+volKnobGlow.Size = UDim2.fromOffset(12, 12)
+volKnobGlow.Position = UDim2.new(0.5, -6, 0.5, -6)
+volKnobGlow.BackgroundColor3 = C_ACC2
+volKnobGlow.BackgroundTransparency = 0.7
+volKnobGlow.BorderSizePixel = 0
+volKnobGlow.ZIndex = 6
+Instance.new("UICorner", volKnobGlow).CornerRadius = UDim.new(1, 0)
+
+local volKnob = Instance.new("Frame", volBg)
+volKnob.Size = UDim2.fromOffset(8, 8)
+volKnob.Position = UDim2.new(0.5, -4, 0.5, -4)
+volKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+volKnob.BorderSizePixel = 0
+volKnob.ZIndex = 7
+Instance.new("UICorner", volKnob).CornerRadius = UDim.new(1, 0)
+
+local volBtn = Instance.new("TextButton", volBg)
+volBtn.Size = UDim2.new(1, 0, 4, 0)
+volBtn.Position = UDim2.new(0, 0, -1.5, 0)
+volBtn.BackgroundTransparency = 1
+volBtn.Text = ""
+volBtn.ZIndex = 8
+
+local discordBtn = Instance.new("TextButton", frame)
+discordBtn.Size = UDim2.new(1, -10, 0, 12)
+discordBtn.Position = UDim2.fromOffset(5, 122)
+discordBtn.BackgroundColor3 = C_DISCORD
+discordBtn.BackgroundTransparency = 0.75
+discordBtn.Text = "💬 discord.gg/MWAeabGhpT"
+discordBtn.TextColor3 = C_DISCORD
+discordBtn.Font = Enum.Font.GothamBold
+discordBtn.TextSize = 8
+discordBtn.BorderSizePixel = 0
+discordBtn.AutoButtonColor = false
+discordBtn.ZIndex = 6
+Instance.new("UICorner", discordBtn).CornerRadius = UDim.new(0, 6)
+
+local discStroke = Instance.new("UIStroke", discordBtn)
+discStroke.Color = C_DISCORD
+discStroke.Thickness = 1
+discStroke.Transparency = 0.4
+
+discordBtn.MouseEnter:Connect(function()
+    TweenService:Create(discordBtn, TweenInfo.new(0.12), {
+        BackgroundTransparency = 0.35, TextColor3 = Color3.new(1,1,1)
+    }):Play()
+    TweenService:Create(discStroke, TweenInfo.new(0.12), {Transparency = 0}):Play()
+end)
+discordBtn.MouseLeave:Connect(function()
+    TweenService:Create(discordBtn, TweenInfo.new(0.12), {
+        BackgroundTransparency = 0.75, TextColor3 = C_DISCORD
+    }):Play()
+    TweenService:Create(discStroke, TweenInfo.new(0.12), {Transparency = 0.4}):Play()
+end)
+
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Name = "ToggleSZKMUSIC"
+toggleBtn.Size = UDim2.fromOffset(TOGGLE_SIZE, TOGGLE_SIZE)
+toggleBtn.Position = UDim2.fromOffset(20, 120)
+toggleBtn.BackgroundColor3 = C_BG1
+toggleBtn.BackgroundTransparency = 0
+toggleBtn.Text = ""
+toggleBtn.BorderSizePixel = 0
+toggleBtn.AutoButtonColor = false
+toggleBtn.Visible = false
+toggleBtn.ZIndex = 5
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 12)
+
+local togBgImg = Instance.new("ImageLabel", toggleBtn)
+togBgImg.Size = UDim2.new(1, 0, 1, 0)
+togBgImg.BackgroundTransparency = 1
+togBgImg.Image = BG_ID
+togBgImg.ScaleType = Enum.ScaleType.Crop
+togBgImg.ImageTransparency = 0.15
+togBgImg.ZIndex = 5
+Instance.new("UICorner", togBgImg).CornerRadius = UDim.new(0, 12)
+
+local togOverlay = Instance.new("Frame", toggleBtn)
+togOverlay.Size = UDim2.new(1, 0, 1, 0)
+togOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+togOverlay.BackgroundTransparency = 0.6
+togOverlay.BorderSizePixel = 0
+togOverlay.ZIndex = 6
+Instance.new("UICorner", togOverlay).CornerRadius = UDim.new(0, 12)
+
+local togStroke = Instance.new("UIStroke", toggleBtn)
+togStroke.Color = C_ACC1
+togStroke.Thickness = 1.5
+togStroke.Transparency = 0.15
+local togStrokeGrad = Instance.new("UIGradient", togStroke)
+togStrokeGrad.Color = ColorSequence.new(C_ACC1, C_ACC2)
+togStrokeGrad.Rotation = 45
+
+local togStroke2 = Instance.new("UIStroke", toggleBtn)
+togStroke2.Color = Color3.new(1, 1, 1)
+togStroke2.Thickness = 0.5
+togStroke2.Transparency = 0.85
+
+local togText = Instance.new("TextLabel", toggleBtn)
+togText.Name = "IconText"
+togText.Size = UDim2.fromScale(1, 1)
+togText.BackgroundTransparency = 1
+togText.Text = "🎵"
+togText.TextColor3 = C_ACC2
+togText.Font = Enum.Font.GothamBold
+togText.TextSize = 18
+togText.ZIndex = 7
+
+toggleBtn.MouseEnter:Connect(function()
+    TweenService:Create(togText, TweenInfo.new(0.15), {TextColor3 = C_ACC1}):Play()
+    TweenService:Create(togStroke, TweenInfo.new(0.15), {Transparency = 0}):Play()
+end)
+toggleBtn.MouseLeave:Connect(function()
+    TweenService:Create(togText, TweenInfo.new(0.15), {TextColor3 = C_ACC2}):Play()
+    TweenService:Create(togStroke, TweenInfo.new(0.15), {Transparency = 0.15}):Play()
+end)
+
+local function updateSong() songLabel.Text = SONGS[S.index].name end
+
+local function setPlayVisual(isPlaying)
+    local isImg = btnPlay:GetAttribute("IsImage")
+    local img = btnPlay:FindFirstChild("IconImg")
+    local txt = btnPlay:FindFirstChild("IconTxt")
+
+    if isPlaying then
+        if isImg and img then
+            local pauseAsset = getIcon("si:pause-presentation-duotone", "")
+            if pauseAsset and pauseAsset ~= "" then img.Image = pauseAsset end
+        elseif txt then txt.Text = "⏸" end
+        btnPlay:SetAttribute("AccentColor", C_WARN)
+        btnPlay:SetAttribute("ActiveColor", C_WARN)
+        btnPlay.BackgroundColor3 = C_WARN
+        TweenService:Create(btnPlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.35}):Play()
+        if img then img.ImageColor3 = Color3.new(1,1,1) end
+        if txt then txt.TextColor3 = Color3.new(1,1,1) end
+    else
+        if isImg and img then
+            local playAsset = getIcon("si:play-fill", "")
+            if playAsset and playAsset ~= "" then img.Image = playAsset end
+        elseif txt then txt.Text = "▶" end
+        btnPlay:SetAttribute("AccentColor", C_OK)
+        btnPlay:SetAttribute("ActiveColor", C_OK)
+        btnPlay.BackgroundColor3 = C_OK
+        TweenService:Create(btnPlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.7}):Play()
+        if img then img.ImageColor3 = C_OK end
+        if txt then txt.TextColor3 = C_OK end
+    end
+end
+
+local function setLoopVisual() setIconBtnState(btnLoop, S.loopOn) end
+local function setRandVisual() setIconBtnState(btnRand, S.randomOn) end
+
+local function buildShuffleQueue(startIndex)
+    shuffledQueue = {}
+    for i = 1, #SONGS do
+        if i ~= startIndex then table.insert(shuffledQueue, i) end
+    end
+    for i = #shuffledQueue, 2, -1 do
+        local j = math.random(1, i)
+        shuffledQueue[i], shuffledQueue[j] = shuffledQueue[j], shuffledQueue[i]
+    end
+end
+
+local function popShuffle()
+    if #shuffledQueue == 0 then buildShuffleQueue(S.index) end
+    return table.remove(shuffledQueue, 1)
+end
+
+local function playCurrent()
+    Music:Stop()
+    Music.SoundId = SONGS[S.index].id
+    Music.Volume = S.volume
+    Music.Looped = S.loopOn
+    Music:Play()
+    S.playing = true
+    setPlayVisual(true)
+end
+
+local function stopPlay()
+    Music:Stop()
+    S.playing = false
+    setPlayVisual(false)
+    progFill.Size = UDim2.new(0, 0, 1, 0)
+end
+
+local function nextSong(auto)
+    if S.randomOn then
+        S.index = popShuffle()
+    else
+        S.index = S.index + 1
+        if S.index > #SONGS then S.index = 1 end
+    end
+    updateSong()
+    if S.playing or auto then playCurrent() end
+end
+
+local function prevSong()
+    S.index = S.index - 1
+    if S.index < 1 then S.index = #SONGS end
+    updateSong()
+    if S.playing then playCurrent() end
+end
+
+local function togglePlay()
+    if S.playing then
+        Music:Pause()
+        S.playing = false
+        setPlayVisual(false)
+    else
+        if Music.TimePosition > 0 and Music.SoundId == SONGS[S.index].id then
+            Music:Resume()
+            S.playing = true
+            setPlayVisual(true)
+        else
+            playCurrent()
+        end
+    end
+end
+
+btnPlay.MouseButton1Click:Connect(togglePlay)
+ballBtn.MouseButton1Click:Connect(togglePlay)
+btnStop.MouseButton1Click:Connect(stopPlay)
+btnNext.MouseButton1Click:Connect(function() nextSong(false) end)
+btnPrev.MouseButton1Click:Connect(prevSong)
+
+btnLoop.MouseButton1Click:Connect(function()
+    S.loopOn = not S.loopOn
+    Music.Looped = S.loopOn
+    setLoopVisual()
+end)
+
+btnRand.MouseButton1Click:Connect(function()
+    S.randomOn = not S.randomOn
+    setRandVisual()
+    if S.randomOn then buildShuffleQueue(S.index) else shuffledQueue = {} end
+end)
+
+Music.Ended:Connect(function()
+    if S.loopOn then playCurrent() else nextSong(true) end
+end)
+
+discordBtn.MouseButton1Click:Connect(function()
+    pcall(function() if setclipboard then setclipboard(DISCORD_URL) end end)
+    pcall(function() GuiService:OpenBrowserWindow(DISCORD_URL) end)
+    local original = discordBtn.Text
+    discordBtn.Text = "✅ ¡Copiado!"
+    TweenService:Create(discordBtn, TweenInfo.new(0.1), {TextColor3 = C_OK}):Play()
+    task.delay(1.2, function()
+        discordBtn.Text = original
+        TweenService:Create(discordBtn, TweenInfo.new(0.2), {TextColor3 = C_DISCORD}):Play()
+    end)
+end)
+
+btnClose.MouseButton1Click:Connect(function()
+    S.open = false
+    toggleBtn.Position = UDim2.new(
+        frame.Position.X.Scale, frame.Position.X.Offset + TOGGLE_OFF_X,
+        frame.Position.Y.Scale, frame.Position.Y.Offset + TOGGLE_OFF_Y
+    )
+    for i, s in ipairs(toggleShadows) do
+        s.Position = UDim2.new(
+            toggleBtn.Position.X.Scale, toggleBtn.Position.X.Offset - i,
+            toggleBtn.Position.Y.Scale, toggleBtn.Position.Y.Offset - i + 2
+        )
+        s.Visible = true
+    end
+    frame.Visible = false
+    for _, s in ipairs(shadows) do s.Visible = false end
+    toggleBtn.Visible = true
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    S.open = true
+    frame.Position = UDim2.new(
+        toggleBtn.Position.X.Scale, toggleBtn.Position.X.Offset - TOGGLE_OFF_X,
+        toggleBtn.Position.Y.Scale, toggleBtn.Position.Y.Offset - TOGGLE_OFF_Y
+    )
+    for i, s in ipairs(shadows) do
+        s.Position = UDim2.new(
+            frame.Position.X.Scale, frame.Position.X.Offset - i,
+            frame.Position.Y.Scale, frame.Position.Y.Offset - i + 2
+        )
+        s.Visible = true
+    end
+    for _, s in ipairs(toggleShadows) do s.Visible = false end
+    frame.Visible = true
+    toggleBtn.Visible = false
+end)
+
+RunService.Heartbeat:Connect(function()
+    local t = tick()
+    if Music.IsPlaying then
+        local pulse = (math.sin(t * 4) + 1) * 0.5
+        stroke1.Transparency = 0.35 - pulse * 0.25
+        ballGlow.Transparency = 0.15 - pulse * 0.1
+        ballGlowGrad.Rotation = (ballGlowGrad.Rotation + 2) % 360
+        togStrokeGrad.Rotation = (togStrokeGrad.Rotation + 1.5) % 360
+        hDot.BackgroundColor3 = C_ACC2:Lerp(C_ACC1, pulse)
+        hDotGlow.Color = hDot.BackgroundColor3
+    else
+        stroke1.Transparency = 0.15
+        ballGlow.Transparency = 0.2
+    end
+    stroke1Grad.Rotation = (stroke1Grad.Rotation + 0.5) % 360
+end)
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if Music.IsPlaying and Music.TimeLength > 0 then
+            local pct = math.clamp(Music.TimePosition / Music.TimeLength, 0, 1)
+            progFill.Size = UDim2.new(pct, 0, 1, 0)
+        end
+    end
+end)
+
+local function setVol(rel)
+    rel = math.clamp(rel, 0, 1)
+    S.volume = rel
+    Music.Volume = rel
+    volFill.Size = UDim2.new(rel, 0, 1, 0)
+    volKnob.Position = UDim2.new(rel, -4, 0.5, -4)
+    volKnobGlow.Position = UDim2.new(rel, -6, 0.5, -6)
+end
+
+local volDragging = false
+volBtn.MouseButton1Down:Connect(function()
+    volDragging = true
+    local m = UserInputService:GetMouseLocation()
+    setVol((m.X - volBg.AbsolutePosition.X) / volBg.AbsoluteSize.X)
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then volDragging = false end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if volDragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch) then
+        local m = UserInputService:GetMouseLocation()
+        setVol((m.X - volBg.AbsolutePosition.X) / volBg.AbsoluteSize.X)
+    end
+end)
+
+local dragState = {
+    main   = {dragging=false, startMouse=nil, startPos=nil},
+    toggle = {dragging=false, startMouse=nil, startPos=nil},
+}
+
+local function beginDrag(key, pos)
+    dragState[key].dragging = true
+    dragState[key].startMouse = UserInputService:GetMouseLocation()
+    dragState[key].startPos = pos
+end
+
+local function endDrag(key) dragState[key].dragging = false end
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        beginDrag("main", frame.Position)
+    end
+end)
+
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        beginDrag("toggle", toggleBtn.Position)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        endDrag("main")
+        endDrag("toggle")
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragState.main.dragging then
+        local st = dragState.main
+        local cur = UserInputService:GetMouseLocation()
+        local delta = cur - st.startMouse
+        frame.Position = UDim2.new(
+            st.startPos.X.Scale, st.startPos.X.Offset + delta.X,
+            st.startPos.Y.Scale, st.startPos.Y.Offset + delta.Y
+        )
+        for i, s in ipairs(shadows) do
+            s.Position = UDim2.new(
+                frame.Position.X.Scale, frame.Position.X.Offset - i,
+                frame.Position.Y.Scale, frame.Position.Y.Offset - i + 2
+            )
+        end
+    end
+
+    if dragState.toggle.dragging then
+        local st = dragState.toggle
+        local cur = UserInputService:GetMouseLocation()
+        local delta = cur - st.startMouse
+        toggleBtn.Position = UDim2.new(
+            st.startPos.X.Scale, st.startPos.X.Offset + delta.X,
+            st.startPos.Y.Scale, st.startPos.Y.Offset + delta.Y
+        )
+        for i, s in ipairs(toggleShadows) do
+            s.Position = UDim2.new(
+                toggleBtn.Position.X.Scale, toggleBtn.Position.X.Offset - i,
+                toggleBtn.Position.Y.Scale, toggleBtn.Position.Y.Offset - i + 2
+            )
+        end
+    end
+end)
+
+setVol(S.volume)
+setLoopVisual()
+setRandVisual()
+setPlayVisual(false)
+updateSong()
